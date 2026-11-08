@@ -1,14 +1,13 @@
 <?php
 
+declare( strict_types=1 );
+
 namespace MediaWiki\Extension\QRLite;
 
 use MediaWiki\Hook\ParserFirstCallInitHook;
 
 /**
  * Hooks for QRLite extension
- *
- * @file
- * @ingroup Extensions
  */
 class QRLiteHooks implements ParserFirstCallInitHook {
 
@@ -17,14 +16,11 @@ class QRLiteHooks implements ParserFirstCallInitHook {
 	 *
 	 * See also http://www.mediawiki.org/wiki/Manual:Parser_functions
 	 *
-	 * @param Parser $parser Parser object being initialised
-	 * @return bool|void True or no return value to continue or false to abort
+	 * @param \Parser $parser Parser object being initialised
 	 */
-	public function onParserFirstCallInit( $parser ) {
+	public function onParserFirstCallInit( $parser ): void {
 		// Register parser functions
 		$parser->setFunctionHook( 'qrlite', [ $this, 'qrliteFunctionHook' ] );
-
-		return true;
 	}
 
 	/**
@@ -35,9 +31,9 @@ class QRLiteHooks implements ParserFirstCallInitHook {
 	 *
 	 * @return array
 	 */
-	public static function qrliteFunctionHook( $parser, $main ) {
+	public function qrliteFunctionHook( \Parser $parser, string $main ): array {
 		$args = array_slice( func_get_args(), 2 );
-		$params = self::extractOptions( $args );
+		$params = $this->extractOptions( $args );
 
 		// If the prefix is not set as key-value, but the first parameter is set
 		// Use it as prefix (short form)
@@ -45,9 +41,9 @@ class QRLiteHooks implements ParserFirstCallInitHook {
 			$params['prefix'] = $main;
 		}
 
-		$id = QRLiteFunctions::generateQRCode( $params );
+		$html = QRLiteFunctions::generateQRCode( $params );
 
-		return [ $id, 'noparse' => true, 'isHTML' => true ];
+		return [ $html, 'noparse' => true, 'isHTML' => true ];
 	}
 
 	/**
@@ -57,12 +53,12 @@ class QRLiteHooks implements ParserFirstCallInitHook {
 	 * @param array $options
 	 * @return array $results
 	 */
-	private static function extractOptions( array $options ) {
+	private function extractOptions( array $options ): array {
 		$results = [];
 
 		foreach ( $options as $option ) {
 			$pair = explode( '=', $option, 2 );
-			if ( count( $pair ) == 2 ) {
+			if ( count( $pair ) === 2 ) {
 				$name = trim( $pair[0] );
 				$value = trim( $pair[1] );
 				$results[$name] = $value;

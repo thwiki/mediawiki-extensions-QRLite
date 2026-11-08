@@ -14,27 +14,48 @@
 	},
 	"require": {
 		"composer/installers": ">=1.0.1",
-		"endroid/qr-code": "^4.6"
+		"endroid/qr-code": "^6.0"
 	},
 	"require-dev": {
-		"php-parallel-lint/php-parallel-lint": "1.3.2",
-		"mediawiki/mediawiki-codesniffer": "40.0.1",
+		"mediawiki/mediawiki-codesniffer": "52.0.1",
+		"mediawiki/mediawiki-phan-config": "0.20.0",
+		"mediawiki/minus-x": "2.0.1",
 		"php-parallel-lint/php-console-highlighter": "1.0.0",
-		"mediawiki/minus-x": "1.1.1"
+		"php-parallel-lint/php-parallel-lint": "1.4.0"
 	},
 	"scripts": {
 		"test": [
-			"parallel-lint . --exclude vendor --exclude node_modules",
-			"phpcs -p -s",
-			"minus-x check ."
+			"@analyze",
+			"@phpunit"
+		],
+		"test-coverage": [
+			"@analyze",
+			"@phpunit-coverage"
+		],
+		"analyze": [
+			"@lint",
+			"@phpcs"
 		],
 		"fix": [
-			"minus-x fix .",
-			"phpcbf"
-		]
+			"@phpcs-fix"
+		],
+		"lint": "parallel-lint . --exclude vendor --exclude node_modules",
+		"phpcs": "phpcs -ps",
+		"phpcs-fix": "phpcbf -p",
+		"phpunit": [
+			"Composer\\Config::disableProcessTimeout",
+			"bash -c 'extDir=$(pwd) && cd ${MW_INSTALL_PATH:-../..} && { [ -f tests/phpunit/generatePHPUnitConfig.php ] && { php tests/phpunit/generatePHPUnitConfig.php >/dev/null 2>&1 || true; [ -f phpunit.xml ] || printf \"%s\" \"<phpunit><!-- generatePHPUnitConfig --></phpunit>\" > phpunit.xml; } || true; } && MEDIAWIKI_HAS_INTEGRATION_TESTS=1 vendor/bin/phpunit -c \"$extDir/phpunit.xml.dist\" --bootstrap tests/phpunit/bootstrap.php --testdox'"
+		],
+		"phpunit-coverage": [
+			"Composer\\Config::disableProcessTimeout",
+			"bash -c 'extDir=$(pwd) && cd ${MW_INSTALL_PATH:-../..} && { [ -f tests/phpunit/generatePHPUnitConfig.php ] && { php tests/phpunit/generatePHPUnitConfig.php >/dev/null 2>&1 || true; [ -f phpunit.xml ] || printf \"%s\" \"<phpunit><!-- generatePHPUnitConfig --></phpunit>\" > phpunit.xml; } || true; } && MEDIAWIKI_HAS_INTEGRATION_TESTS=1 vendor/bin/phpunit -c \"$extDir/phpunit.xml.dist\" --bootstrap tests/phpunit/bootstrap.php --testdox --coverage-text --coverage-html \"$extDir/coverage/php\" --coverage-clover \"$extDir/coverage/php/coverage.xml\"'"
+		],
+		"minus-x": "minus-x check .",
+		"phan": "phan --allow-polyfill-parser"
 	},
 	"config": {
 		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true,
 			"composer/installers": true
 		}
 	}

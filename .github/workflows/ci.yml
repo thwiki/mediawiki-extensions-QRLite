@@ -3,38 +3,67 @@ name: CI
 on:
   push:
     branches: [ master ]
+    paths-ignore:
+      - '**/*.adoc'
   pull_request:
     branches: [ master ]
+    paths-ignore:
+      - '**/*.adoc'
   workflow_dispatch:
 
 jobs:
-
   test:
-
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
 
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - mediawiki_version: '1.35'
-            coverage: false
+          - mediawiki_version: '1.43'
+            php_version: 8.3
+            database_type: mysql
+            database_image: "mysql:8"
+            coverage: true
             experimental: false
-          - mediawiki_version: '1.39'
+          - mediawiki_version: '1.46'
+            php_version: 8.4
+            database_type: mysql
+            database_image: "mariadb:12.3"
             coverage: false
             experimental: true
 
     env:
       MW_VERSION: ${{ matrix.mediawiki_version }}
+      PHP_VERSION: ${{ matrix.php_version }}
+      DB_TYPE: ${{ matrix.database_type }}
+      DB_IMAGE: ${{ matrix.database_image }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
 
-      - name: Run tests
+      - name: Run CI
         run: make ci
         if: matrix.coverage == false
 
-      - name: Run tests with coverage
-        run: make ci-coverage
+      - name: Run CI with coverage
+        run: mkdir -p build/coverage && make ci-coverage
         if: matrix.coverage == true
+
+      - name: Upload coverage
+        if: matrix.coverage == true
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: gesinn-it/QRLite
+          files: build/coverage/php/coverage.xml
+          disable_search: true
+
+      - name: Run Phan
+        if: matrix.coverage == true
+        run: make composer-phan
+        env:
+          MW_VERSION: ${{ matrix.mediawiki_version }}
+          PHP_VERSION: ${{ matrix.php_version }}

@@ -1,25 +1,21 @@
 <?php
 
+declare( strict_types=1 );
+
 namespace MediaWiki\Extension\QRLite;
 
-use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
-use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelLow;
-use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelMedium;
-use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelQuartile;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Writer\SvgWriter;
 use Exception;
-use Html;
 
 /**
  * The actual QRLite Functions
  *
  * They can be used in a programmatic way through this class
  * Use the static getId function as the main entry point
- *
- * @file
- * @ingroup Extensions
  */
 class QRLiteFunctions {
 
@@ -27,10 +23,17 @@ class QRLiteFunctions {
 	 * @param array $params
 	 * @return string HTML for display of the QR code.
 	 */
-	public static function generateQRCode( $params = [] ) {
+	public static function generateQRCode( array $params = [] ): string {
+		// MediaWiki\Html\Html was introduced in MW 1.40; the global Html alias was removed in MW 1.44.
+		// This shim resolves the correct class for all supported versions (>= 1.39).
+		$htmlClass = class_exists( \MediaWiki\Html\Html::class )
+			? \MediaWiki\Html\Html::class
+			: \Html::class;
+
 		// Dependency check.
 		if ( !class_exists( QrCode::class ) ) {
-			return Html::errorBox( 'QRLite error: QrCode class not found, you may need to run "composer install".' );
+			$msg = 'QRLite error: QrCode class not found, you may need to run "composer install".';
+			return $htmlClass::errorBox( $msg );
 		}
 
 		// Defaults and escaping
@@ -43,30 +46,22 @@ class QRLiteFunctions {
 
 		$ecc = (int)self::paramGet( $params, 'ecc', 2 );
 
-		// TODO: Doesn't seem to work
-		$eccLevel = new ErrorCorrectionLevelMedium();
-		if ( $ecc === 1 ) {
-			$eccLevel = new ErrorCorrectionLevelLow();
-		} else {
-			if ( $ecc === 2 ) {
-				$eccLevel = new ErrorCorrectionLevelMedium();
-			} else {
-				if ( $ecc === 3 ) {
-					$eccLevel = new ErrorCorrectionLevelQuartile();
-				} else {
-					if ( $ecc === 4 ) {
-						$eccLevel = new ErrorCorrectionLevelHigh();
-					}
-				}
-			}
-		}
+		$eccLevel = match ( $ecc ) {
+			1 => ErrorCorrectionLevel::Low,
+			3 => ErrorCorrectionLevel::Quartile,
+			4 => ErrorCorrectionLevel::High,
+			default => ErrorCorrectionLevel::Medium,
+		};
 
 		$image = '';
 		try {
-			$qrCode = new QrCode( $content );
-			$qrCode->setSize( $size * 30 );
-			$qrCode->setMargin( $margin );
-			$qrCode->setErrorCorrectionLevel( $eccLevel );
+			$qrCode = new QrCode(
+				data: $content,
+				encoding: new Encoding( 'UTF-8' ),
+				errorCorrectionLevel: $eccLevel,
+				size: (int)$size * 30,
+				margin: (int)$margin,
+			);
 			$writer = $format === 'svg' ? new SvgWriter() : new PngWriter();
 			$writerOptions = [
 				SvgWriter::WRITER_OPTION_EXCLUDE_XML_DECLARATION => true
@@ -76,17 +71,14 @@ class QRLiteFunctions {
 			if ( $format === 'svg' ) {
 				$image = '<span class="svg-container" title="' . $content . '">' . $result->getString() . '</span>';
 			} else {
-				$image = Html::element( 'img', [ 'src' => $result->getDataUri(), 'title' => $content ] );
+				$image = $htmlClass::element( 'img', [ 'src' => $result->getDataUri(), 'title' => $content ] );
 			}
 		} catch ( Exception $e ) {
 			$image = '<span class="error-message">' . $e->getMessage() . '</span>';
 
 		}
 
-		$downloadButtons = '';
-		$result = '<span class="qrlite-result">' . $image . $downloadButtons . '</span>';
-
-		return $result;
+		return '<span class="qrlite-result">' . $image . '</span>';
 	}
 
 	//////////////////////////////////////////
@@ -103,24 +95,12 @@ class QRLiteFunctions {
 	 *
 	 * @return mixed
 	 */
-	public static function paramGet( $params, $key, $default = null ) {
+	public static function paramGet( array $params, string $key, $default = null ) {
 		if ( isset( $params[$key] ) ) {
 			return trim( $params[$key] );
 		} else {
 			return $default;
 		}
-	}
-
-	/**
-	 * Debug function that converts an object/array to a <pre> wrapped pretty printed JSON string
-	 *
-	 * @param mixed $obj
-	 * @return string
-	 */
-	public static function toJSON( $obj ) {
-		header( 'Content-Type: application/json' );
-		echo json_encode( $obj, JSON_PRETTY_PRINT );
-		die();
 	}
 
 }

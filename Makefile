@@ -1,54 +1,49 @@
-EXTENSION := QRLite
+export
 
-MW_VERSION ?= 1.35
+# setup for docker-compose-ci build directory
+# delete "build" directory to update docker-compose-ci
 
-EXTENSION_FOLDER := /var/www/html/extensions/$(EXTENSION)
-IMAGE_NAME := $(shell echo $(EXTENSION) | tr A-Z a-z}):test-$(MW_VERSION)-$(SMW_VERSION)
-PWD := $(shell bash -c "pwd -W 2>/dev/null || pwd")# this way it works on Windows and Linux
-DOCKER_RUN_ARGS := --rm -v $(PWD)/coverage:$(EXTENSION_FOLDER)/coverage -w $(EXTENSION_FOLDER) $(IMAGE_NAME)
-docker_run := docker run $(DOCKER_RUN_ARGS)
+ifeq (,$(wildcard ./build/))
+    $(shell git submodule update --init --remote)
+endif
 
-.PHONY: all
-all:
+EXTENSION=qrlite
 
-# ======== CI ========
+# docker images
+MW_VERSION?=1.43
+PHP_VERSION?=8.3
+DB_TYPE?=mysql
+DB_IMAGE?="mysql:8"
 
-.PHONY: ci
-ci: build test
+# extensions
+# Enables installation of apt packages for gd extension
+OS_PACKAGES?=zlib1g-dev libpng-dev
 
-.PHONY: ci-coverage
-ci-coverage: build test-coverage
+# Enables installation of gd extension
+PHP_EXTENSIONS?=gd
 
-.PHONY: build
-build:
-	docker build --tag $(IMAGE_NAME) \
-		--build-arg=MW_VERSION=$(MW_VERSION) \
-		.
+# composer
+# Enables "composer update" inside of extension
+COMPOSER_EXT?=true
 
-.PHONY: test
-test: composer-test npm-test
+# nodejs
+# Enables node.js related tests and "npm install"
+NODE_JS?=true
 
-.PHONY: test-coverage
-test-coverage: composer-test-coverage
+# check for build dir and git submodule init if it does not exist
+include build/Makefile
 
-.PHONY: composer-test
-composer-test:
-	$(docker_run) composer test
+# QRLite has no JavaScript source files; npm-test-coverage is a no-op
+.PHONY: npm-test-coverage
+npm-test-coverage: .init
+	@echo "Skipping npm-test-coverage: QRLite has no JavaScript source files"
 
-.PHONY: npm-test
-npm-test:
-	$(docker_run) npm run test
+.PHONY: composer-phan
+composer-phan: .init ## Run Phan static analysis
+	$(compose-exec-wiki) bash -c "cd $(EXTENSION_FOLDER) && composer phan $(COMPOSER_PARAMS)"
 
-.PHONY: composer-test-coverage
-composer-test-coverage:
-	$(docker_run) composer test-coverage
-
-.PHONY: bash
-bash:
-	docker run -it -v $(PWD):/src $(DOCKER_RUN_ARGS) bash
-
-.PHONY: dev-bash
-dev-bash:
-	docker run -it --rm \
-		-v $(PWD):$(EXTENSION_FOLDER) -v $(EXTENSION_FOLDER)/node_modules -v $(EXTENSION_FOLDER)/vendor \
-		-w $(EXTENSION_FOLDER) $(IMAGE_NAME) bash
+.PHONY: composer-phan-update-baseline
+composer-phan-update-baseline: .init ## Re-generate baseline and fix indentation for PHPCS
+	$(compose-exec-wiki) bash -c "cd $(EXTENSION_FOLDER) && composer phan -- --save-baseline=.phan/baseline.php"
+	docker cp $(extension)-$(DB_TYPE)-wiki-1:$(EXTENSION_FOLDER)/.phan/baseline.php .phan/baseline.php
+	unexpand --first-only -t 4 .phan/baseline.php > /tmp/baseline.php && mv /tmp/baseline.php .phan/baseline.php

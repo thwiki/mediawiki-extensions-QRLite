@@ -1,6 +1,6 @@
 {
 	"name": "QRLite",
-	"version": "1.0.0-alpha4",
+	"version": "2.0.0",
 	"author": [
 		"Simon Heimler (gesinn.it GmbH & Co. KG)",
 		"Alexander Gesinn (gesinn.it GmbH & Co. KG)"
@@ -10,7 +10,7 @@
 	"license-name": "GPL-3.0-or-later",
 	"type": "other",
 	"requires": {
-		"MediaWiki": ">= 1.35"
+		"MediaWiki": ">= 1.43"
 	},
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\QRLite\\": "./src/"
@@ -32,5 +32,5 @@
 		}
 	},
 	"load_composer_autoloader": true,
-	"manifest_version": 1
+	"manifest_version": 2
 }
