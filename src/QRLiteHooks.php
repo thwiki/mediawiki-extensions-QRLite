@@ -3,6 +3,7 @@
 declare( strict_types=1 );
 
 namespace MediaWiki\Extension\QRLite;
+use MediaWiki\Parser\Parser;
 
 use MediaWiki\Hook\ParserFirstCallInitHook;
 
@@ -26,7 +27,7 @@ class QRLiteHooks implements ParserFirstCallInitHook {
 	/**
 	 * Wrapper for the #qrlite parser function
 	 *
-	 * @param \Parser $parser
+	 * @param Parser $parser
 	 * @param string $main
 	 *
 	 * @return array
