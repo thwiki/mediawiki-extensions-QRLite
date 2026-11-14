@@ -14,7 +14,7 @@
 	},
 	"require": {
 		"composer/installers": ">=1.0.1",
-		"endroid/qr-code": "^6.0"
+		"endroid/qr-code": "^4.6"
 	},
 	"require-dev": {
 		"mediawiki/mediawiki-codesniffer": "52.0.1",
